@@ -425,42 +425,42 @@ class Interpreter(object):
     def visit_operator(self, node, vis):
         if node.operation.type == SUM:
             if vis:
-                return self.visit(node.left, vis) + ' + '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + '+'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) + self.visit(node.right, vis)
         
         elif node.operation.type == SUB:
             if vis:
-                return self.visit(node.left, vis) + ' - '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + ' - '+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) - self.visit(node.right, vis)
         
         elif node.operation.type == MUL:
             if vis:
-                return self.visit(node.left, vis) + ' * '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + '*'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) * self.visit(node.right, vis)
 
         elif node.operation.type == AND:
             if vis:
-                return self.visit(node.left, vis) + ' ∧ '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + '∧'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) and self.visit(node.right, vis)
 
         elif node.operation.type == OR:
             if vis:
-                return self.visit(node.left, vis) + ' ∨ '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + '∨'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) or self.visit(node.right, vis)
 
         elif node.operation.type == EQ:
             if vis:
-                return self.visit(node.left, vis) + ' = '+ self.visit(node.right, vis)
+                return '(' +self.visit(node.left, vis) + '='+ self.visit(node.right, vis)+ ')'
             return self.visit(node.left, vis) == self.visit(node.right, vis)
 
         elif node.operation.type == LESS:
             if vis:
-                return self.visit(node.left, vis) + ' < '+ self.visit(node.right, vis)
+                return '(' + self.visit(node.left, vis) + '<'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) < self.visit(node.right, vis)
 
         elif node.operation.type == NOT:
             if vis:
-                return self.visit(node.left, vis) + ' ¬'+ self.visit(node.right, vis)
+                return ' ¬(' + self.visit(node.expr, vis) + ')'
             return not (self.visit(node.expr, vis))
         
     def visit_Assign(self, node, vis):
@@ -487,6 +487,8 @@ class Interpreter(object):
             return 'skip'
     
     def visit_Scope(self, node, vis):
+        output = ''
+        is_first_command = True
         for index,statement in enumerate(node.statement_list):
             if not vis:
                 #print(self.command)
@@ -504,22 +506,38 @@ class Interpreter(object):
                     #print(self.command)
                 return
             else:
-                self.command += self.visit(statement, vis = True)
+                if is_first_command:
+                    output += self.visit(statement, vis = True)
+                    is_first_command = False
+                else:
+                    output += ' ; ' + self.visit(statement, vis = True)
+        return output
         #print(self.command)
                 
     def visit_If(self, node, vis):
-        if self.visit(node.condition, vis):
-            return self.visit(node.then_scope, vis = True)
+        if not vis:
+            if self.visit(node.condition, vis):
+                return self.visit(node.then_scope, vis = True)
+            else:
+                return self.visit(node.else_scope, vis = True)
         else:
-            return self.visit(node.else_scope, vis = True)
+            return 'if ' + self.visit(node.condition, vis = True) \
+                    + ' then ' + '{ ' + self.visit(node.then_scope, vis = True) + ' }' \
+                    + ' else ' + '{ ' + self.visit(node.else_scope, vis = True) + ' }'
             
 
-    def visit_While(self, node, vis):    
-        if self.visit(node.condition, vis):
-            output  = self.visit(node.scope, vis = True)
+    def visit_While(self, node, vis):
+        if not vis:    
+            if self.visit(node.condition, vis):
+                scope  = self.visit(node.scope, vis = True)
+                output = scope + ' ; while ' + self.visit(node.condition, vis = True) + ' do ' + '{ ' + scope + ' }' 
+                return output
+            else:
+                return 'skip'
+        else: 
+            scope  = self.visit(node.scope, vis = True)
+            output = 'while ' + self.visit(node.condition, vis = True) + ' do ' + '{ ' + scope + ' }'
             return output
-        else:
-            return 'skip'
 
     def eval(self, root, vis=False):
         self.visit(root, vis)
@@ -557,7 +575,6 @@ def main():
             AST = parser.parse()
             interpreter = Interpreter(state)
             command, state = interpreter.eval(AST)
-            #print(command)
             #print(command)
             if command != '':
                 print('⇒ ' + command + ', ' + interpreter.print_table(state))
