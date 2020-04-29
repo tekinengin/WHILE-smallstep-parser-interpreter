@@ -144,10 +144,10 @@ class Lexer(object):
             # '-' can be before a negative number or can be a operator 
             elif self.current_char == '-':
                 self.advance()
-                if self.current_char.isspace():
-                    return Token(SUB, '-')
-                else:
-                    return Token(INT, -1 * self.get_int())
+                #if self.current_char.isspace():
+                return Token(SUB, '-')
+                #else:
+                #    return Token(INT, -1 * self.get_int())
                 
             elif self.current_char.isdigit():
                 return Token(INT, self.get_int())
@@ -316,7 +316,18 @@ class Parser(object):
         
     def factor(self): 
         #print(self.current_token.type)
-        if self.current_token.type in [INT, BOOLEAN]:
+
+        if self.current_token.type == SUM:
+            token = self.current_token
+            self._get_next_token()
+            return Uni_Operator_Node(operation=token, expr=self.factor())
+            
+        elif self.current_token.type == SUB:
+            token = self.current_token
+            self._get_next_token()
+            return Uni_Operator_Node(operation=token, expr=self.factor())
+
+        elif self.current_token.type in [INT, BOOLEAN]:
             token = self.current_token
             self._get_next_token()
             return Operand_Node(token)
@@ -407,9 +418,12 @@ class Interpreter(object):
         elif type(node) == Operand_Node:
             return self.visit_operand(node,vis)
             
-        elif type(node) in [Operator_Node, Uni_Operator_Node]:
+        elif type(node) == Operator_Node:
             return self.visit_operator(node,vis)
         
+        elif type(node) == Uni_Operator_Node:
+            return self.visit_uni_operator(node,vis)
+
         elif type(node) == If_Node:
             return self.visit_If(node,vis)
         
@@ -420,7 +434,19 @@ class Interpreter(object):
         if not vis:
             return node.value
         else:
-            return str(node.value)
+            return str(node.value).lower()
+
+    def visit_uni_operator(self, node, vis):
+        if node.operation.type == SUB:
+            if not vis:
+                return -1 * self.visit(node.expr, vis)
+            else:
+                return '-'+ self.visit(node.expr, vis)
+
+        elif node.operation.type == NOT:
+            if vis:
+                return '¬' + self.visit(node.expr, vis)
+            return not (self.visit(node.expr, vis))
         
     def visit_operator(self, node, vis):
         if node.operation.type == SUM:
@@ -430,7 +456,7 @@ class Interpreter(object):
         
         elif node.operation.type == SUB:
             if vis:
-                return '(' + self.visit(node.left, vis) + ' - '+ self.visit(node.right, vis) + ')'
+                return '(' + self.visit(node.left, vis) + '-'+ self.visit(node.right, vis) + ')'
             return self.visit(node.left, vis) - self.visit(node.right, vis)
         
         elif node.operation.type == MUL:
@@ -460,7 +486,7 @@ class Interpreter(object):
 
         elif node.operation.type == NOT:
             if vis:
-                return ' ¬(' + self.visit(node.expr, vis) + ')'
+                return ' ¬' + self.visit(node.expr, vis)
             return not (self.visit(node.expr, vis))
         
     def visit_Assign(self, node, vis):
@@ -502,7 +528,7 @@ class Interpreter(object):
                         self.command += self.visit(statement, vis = True) 
                         temp = '1'
                     else:
-                        self.command += ' ; ' + self.visit(statement, vis = True) 
+                        self.command += '; ' + self.visit(statement, vis = True) 
                     #print(self.command)
                 return
             else:
@@ -510,7 +536,7 @@ class Interpreter(object):
                     output += self.visit(statement, vis = True)
                     is_first_command = False
                 else:
-                    output += ' ; ' + self.visit(statement, vis = True)
+                    output += '; ' + self.visit(statement, vis = True)
         return output
         #print(self.command)
                 
@@ -530,7 +556,7 @@ class Interpreter(object):
         if not vis:    
             if self.visit(node.condition, vis):
                 scope  = self.visit(node.scope, vis = True)
-                output = scope + ' ; while ' + self.visit(node.condition, vis = True) + ' do ' + '{ ' + scope + ' }' 
+                output = scope + '; while ' + self.visit(node.condition, vis = True) + ' do ' + '{ ' + scope + ' }' 
                 return output
             else:
                 return 'skip'
@@ -569,7 +595,11 @@ def main():
         if not command:
             continue
         state = {}
-        while command != 'skip':
+
+        max_Step = 10000
+        counter = 0
+        while command != 'skip' and counter < max_Step:
+            counter += 1
             lexer = Lexer(command)
             parser = Parser(lexer)
             AST = parser.parse()
