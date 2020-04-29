@@ -385,131 +385,174 @@ class Parser(object):
         return self.scope_statement()
     
 class Interpreter(object):
-    def __init__(self):
+    def __init__(self, GLOBAL_SCOPE={}):
         self.GLOBAL_SCOPE = {}
+        #self.command_stack = []
+        self.command = ''
+
         
-    def visit(self, node):
+    def visit(self, node, vis):
         if type(node) == Scope_Node:
-            return self.visit_Scope(node)
+            return self.visit_Scope(node,vis)
         
         elif type(node) == Assign_Node:
-            return self.visit_Assign(node)
+            return self.visit_Assign(node,vis)
         
         elif type(node) == Var_Node:
-            return self.visit_Var(node)
+            return self.visit_Var(node,vis)
         
         elif type(node) == Pass_Node:
-            return self.visit_Pass(node)
+            self.visit_Pass(node,vis)
         
         elif type(node) == Operand_Node:
-            return self.visit_operand(node)
+            return self.visit_operand(node,vis)
             
         elif type(node) in [Operator_Node, Uni_Operator_Node]:
-            return self.visit_operator(node)
+            return self.visit_operator(node,vis)
         
         elif type(node) == If_Node:
-            return self.visit_If(node)
+            return self.visit_If(node,vis)
         
         elif type(node) == While_Node:
-            return self.visit_While(node)
+            return self.visit_While(node,vis)
         
-    def visit_operand(self, node):
-        return node.value
+    def visit_operand(self, node, vis):
+        if not vis:
+            return node.value
+        else:
+            return str(node.value)
         
-    def visit_operator(self, node):
+    def visit_operator(self, node, vis):
         if node.operation.type == SUM:
-            return self.visit(node.left) + self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' + '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) + self.visit(node.right, vis)
         
         elif node.operation.type == SUB:
-            return self.visit(node.left) - self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' - '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) - self.visit(node.right, vis)
         
         elif node.operation.type == MUL:
-            return self.visit(node.left) * self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' * '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) * self.visit(node.right, vis)
 
         elif node.operation.type == AND:
-            return self.visit(node.left) and self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' ∧ '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) and self.visit(node.right, vis)
 
         elif node.operation.type == OR:
-            return self.visit(node.left) or self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' ∨ '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) or self.visit(node.right, vis)
 
         elif node.operation.type == EQ:
-            return self.visit(node.left) == self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' = '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) == self.visit(node.right, vis)
 
         elif node.operation.type == LESS:
-            return self.visit(node.left) < self.visit(node.right)
+            if vis:
+                return self.visit(node.left, vis) + ' < '+ self.visit(node.right, vis)
+            return self.visit(node.left, vis) < self.visit(node.right, vis)
 
         elif node.operation.type == NOT:
-            return not (self.visit(node.expr))
+            if vis:
+                return self.visit(node.left, vis) + ' ¬'+ self.visit(node.right, vis)
+            return not (self.visit(node.expr, vis))
         
-        
-    def visit_Assign(self,node):
+    def visit_Assign(self, node, vis):
         var_name = node.var.id
-        self.GLOBAL_SCOPE[var_name] = self.visit(node.expr)
-
+        if not vis:
+            self.GLOBAL_SCOPE[var_name] = self.visit(node.expr, vis)
+            return 'skip'
+        else:
+            return  var_name + ' := ' + self.visit(node.expr, vis = True)
         
-    def visit_Var(self, node):
+    def visit_Var(self, node, vis):
         var_name = node.id
+        if vis:
+            return var_name
         value = self.GLOBAL_SCOPE.get(var_name)
         if value is None:
             return 0 ## Assuming every variable is INTEGER
         return value
 
-    def visit_Pass(self, node):
+    def visit_Pass(self, node, vis):
         pass
     
-    def visit_Scope(self, node):
-        for statement in node.statement_list:
-            self.visit(statement)
-    
-    def visit_If(self, node):
-        if self.visit(node.condition):
-            return self.visit(node.then_scope)
-        else:
-            return self.visit(node.else_scope)
+    def visit_Scope(self, node, vis):
+        for index,statement in enumerate(node.statement_list):
+            if not vis:
+                self.command = self.visit(statement, vis)
+                for statement in node.statement_list[index+1:]:
+                    self.command += '; ' + self.visit(statement, vis = True) 
+            else:
+                self.command += self.visit(statement, vis = True)
+        
+                
+    def visit_If(self, node, vis):
+        if not vis:
+            if self.visit(node.condition, vis):
+                temp = self.visit(node.then_scope, vis = True)
+                #self.visit(node.then_scope, vis)
+                return temp
+            else:
+                temp = self.visit(node.else_scope, vis = True)
+                #self.visit(node.else_scope, vis)
+                return temp
 
-    def visit_While(self, node):
-        if self.visit(node.condition):
-            self.visit(node.scope)
-            self.visit(node)
-        else:
-            self.visit(Pass_Node())
+    def visit_While(self, node, vis):
+        if not vis:
+            if self.visit(node.condition, vis):
+                #self.visit(node.scope, vis)
+                output  = self.visit(node.scope, vis = True)
+                return output
+            else:
+                return 'skip'
+
+    def eval(self, root, vis=False):
+        self.visit(root, vis)
+        return self.command, self.GLOBAL_SCOPE
 
 
 
-    def eval(self, root):
-        return self.visit(root)
-
-    def print_table(self):
-        keys = sorted(list(self.GLOBAL_SCOPE.keys()))
+    def print_table(self, state):
+        keys = sorted(list(state.keys()))
         len_keys = len(keys)
         result = '{'
         for index in range(len_keys):
-            result += keys[index] + ' → ' + str(self.GLOBAL_SCOPE[keys[index]])
+            result += keys[index] + ' → ' + str(state[keys[index]])
             if len_keys - index - 1 > 0:
                 result += ', '
 
         result += '}'
-        print(result)
-
+        return result
 
 def main():
     while True:
         try:
             try:
-                text = raw_input('')
+                command = raw_input('')
             except NameError:  # Python3
-                text = input('')
+                command = input('')
         except EOFError:
             break
-        if not text:
+        if not command:
             continue
 
-        lexer = Lexer(text)
-        parser = Parser(lexer)
-        AST = parser.parse()
-        interpreter = Interpreter()
-        interpreter.eval(AST)
-        interpreter.print_table()
+        while command != 'skip':
+            lexer = Lexer(command)
+            parser = Parser(lexer)
+            AST = parser.parse()
+            interpreter = Interpreter()
+            command, state = interpreter.eval(AST)
+            if command != '':
+                print('⇒ ' + command + ', ' + interpreter.print_table(state))
+
+            
     
 if __name__ == '__main__':
     main()
