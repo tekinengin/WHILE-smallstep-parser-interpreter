@@ -386,7 +386,7 @@ class Parser(object):
     
 class Interpreter(object):
     def __init__(self, GLOBAL_SCOPE={}):
-        self.GLOBAL_SCOPE = {}
+        self.GLOBAL_SCOPE = GLOBAL_SCOPE
         #self.command_stack = []
         self.command = ''
 
@@ -402,7 +402,7 @@ class Interpreter(object):
             return self.visit_Var(node,vis)
         
         elif type(node) == Pass_Node:
-            self.visit_Pass(node,vis)
+            return self.visit_Pass(node,vis)
         
         elif type(node) == Operand_Node:
             return self.visit_operand(node,vis)
@@ -481,37 +481,45 @@ class Interpreter(object):
         return value
 
     def visit_Pass(self, node, vis):
-        pass
+        if not vis:
+            return ''
+        else : 
+            return 'skip'
     
     def visit_Scope(self, node, vis):
         for index,statement in enumerate(node.statement_list):
             if not vis:
-                self.command = self.visit(statement, vis)
+                #print(self.command)
+                temp = self.visit(statement, vis = False)
+                #print(temp)
+                if temp != '':
+                    self.command += temp
+                #print(self.command)
                 for statement in node.statement_list[index+1:]:
-                    self.command += '; ' + self.visit(statement, vis = True) 
+                    if temp == '':
+                        self.command += self.visit(statement, vis = True) 
+                        temp = '1'
+                    else:
+                        self.command += ' ; ' + self.visit(statement, vis = True) 
+                    #print(self.command)
+                return
             else:
                 self.command += self.visit(statement, vis = True)
-        
+        #print(self.command)
                 
     def visit_If(self, node, vis):
-        if not vis:
-            if self.visit(node.condition, vis):
-                temp = self.visit(node.then_scope, vis = True)
-                #self.visit(node.then_scope, vis)
-                return temp
-            else:
-                temp = self.visit(node.else_scope, vis = True)
-                #self.visit(node.else_scope, vis)
-                return temp
+        if self.visit(node.condition, vis):
+            return self.visit(node.then_scope, vis = True)
+        else:
+            return self.visit(node.else_scope, vis = True)
+            
 
-    def visit_While(self, node, vis):
-        if not vis:
-            if self.visit(node.condition, vis):
-                #self.visit(node.scope, vis)
-                output  = self.visit(node.scope, vis = True)
-                return output
-            else:
-                return 'skip'
+    def visit_While(self, node, vis):    
+        if self.visit(node.condition, vis):
+            output  = self.visit(node.scope, vis = True)
+            return output
+        else:
+            return 'skip'
 
     def eval(self, root, vis=False):
         self.visit(root, vis)
@@ -542,13 +550,15 @@ def main():
             break
         if not command:
             continue
-
+        state = {}
         while command != 'skip':
             lexer = Lexer(command)
             parser = Parser(lexer)
             AST = parser.parse()
-            interpreter = Interpreter()
+            interpreter = Interpreter(state)
             command, state = interpreter.eval(AST)
+            #print(command)
+            #print(command)
             if command != '':
                 print('⇒ ' + command + ', ' + interpreter.print_table(state))
 
