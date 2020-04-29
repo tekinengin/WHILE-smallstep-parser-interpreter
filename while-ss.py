@@ -3,7 +3,7 @@
 
 # Author Engin Tekin github.com/tekinengin
 '''
-This script typed for CSE210A-Programming Languages - Semantic Applications
+This script typed for CSE210A-Programming Languages - Semantic Applications - Structural Operational Semantics (Small Step)
 
 @Following tutorial has been used during preparation of this code. --- #### https://ruslanspivak.com/lsbasi-part7/ ####
 
@@ -445,6 +445,7 @@ class Interpreter(object):
     def visit_Assign(self,node):
         var_name = node.var.id
         self.GLOBAL_SCOPE[var_name] = self.visit(node.expr)
+
         
     def visit_Var(self, node):
         var_name = node.id
@@ -467,11 +468,28 @@ class Interpreter(object):
             return self.visit(node.else_scope)
 
     def visit_While(self, node):
-        while self.visit(node.condition):
+        if self.visit(node.condition):
             self.visit(node.scope)
+            self.visit(node)
+        else:
+            self.visit(Pass_Node())
+
+
 
     def eval(self, root):
         return self.visit(root)
+
+    def print_table(self):
+        keys = sorted(list(self.GLOBAL_SCOPE.keys()))
+        len_keys = len(keys)
+        result = '{'
+        for index in range(len_keys):
+            result += keys[index] + ' → ' + str(self.GLOBAL_SCOPE[keys[index]])
+            if len_keys - index - 1 > 0:
+                result += ', '
+
+        result += '}'
+        print(result)
 
 
 def main():
@@ -491,16 +509,7 @@ def main():
         AST = parser.parse()
         interpreter = Interpreter()
         interpreter.eval(AST)
-        keys = sorted(list(interpreter.GLOBAL_SCOPE.keys()))
-        len_keys = len(keys)
-        result = '{'
-        for index in range(len_keys):
-            result += keys[index] + ' → ' + str(interpreter.GLOBAL_SCOPE[keys[index]])
-            if len_keys - index - 1 > 0:
-                result += ', '
-    
-        result += '}'
-        print(result)
+        interpreter.print_table()
     
 if __name__ == '__main__':
     main()
