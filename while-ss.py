@@ -15,7 +15,7 @@ LEXER: This class is created to pass through input and tokenize components.
 
 PARSER: Parser is using tokenized input in order to create Abstract-Syntax Tree (AST)
 
-INTERPRETER: This class accepts an AST and evaluate it.
+INTERPRETER: This class accepts an AST and evaluates with small steps return next sequence of command and state it.
 
 Examples:
 
@@ -82,10 +82,11 @@ class Scope_Node(AST):
         self.statement_list = []
 
 class If_Node(AST):
-    def __init__(self, condition, then_scope, else_scope):
+    def __init__(self, condition, then_scope, else_scope, tenary = False):
         self.condition = condition
         self.then_scope = then_scope
         self.else_scope = else_scope
+        self.tenary = tenary
 
 class While_Node(AST):
     def __init__(self,condition, scope):
@@ -371,7 +372,7 @@ class Parser(object):
             then_expression = self.bool_expression()
             self._get_next_token() ## skip ':'
             else_expression = self.bool_expression()
-            return If_Node(node, then_expression, else_expression)
+            return If_Node(node, then_expression, else_expression, tenary = True)
         return node 
     
     def bool_first_pri_expr(self):
@@ -518,21 +519,15 @@ class Interpreter(object):
         is_first_command = True
         for index,statement in enumerate(node.statement_list):
             if not vis:
-                #print(self.command)
                 temp = self.visit(statement, vis = False)
-                #print(temp)
                 if temp != '' and temp != 'scope':
                     self.command += temp
-                #print(self.command)
                 for statement in node.statement_list[index+1:]:
                     if temp == '':
                         self.command += self.visit(statement, vis = True) 
                         temp = '1'
                     else:
-                        #print('burdaaa')
                         self.command += '; ' + self.visit(statement, vis = True)
-                        #print(self.command)
-                    #print(self.command)
                 return 'scope'
             else:
                 if is_first_command:
@@ -541,19 +536,21 @@ class Interpreter(object):
                 else:
                     output += '; ' + self.visit(statement, vis = True)
         return output
-        #print(self.command)
                 
     def visit_If(self, node, vis):
         if not vis:
             if self.visit(node.condition, vis):
-                return self.visit(node.then_scope, vis = True)
+                return self.visit(node.then_scope, vis = not node.tenary)
             else:
-                return self.visit(node.else_scope, vis = True)
+                return self.visit(node.else_scope, vis = not node.tenary)
+        
         else:
-            return 'if ' + self.visit(node.condition, vis = True) \
-                    + ' then ' + '{ ' + self.visit(node.then_scope, vis = True) + ' }' \
-                    + ' else ' + '{ ' + self.visit(node.else_scope, vis = True) + ' }'
-            
+            if not node.tenary: 
+                return 'if ' + self.visit(node.condition, vis = True) \
+                        + ' then ' + '{ ' + self.visit(node.then_scope, vis = True) + ' }' \
+                        + ' else ' + '{ ' + self.visit(node.else_scope, vis = True) + ' }'
+            else:
+                return self.visit(node.condition, vis = True) + '?' + self.visit(node.then_scope, vis = True) + ':' + self.visit(node.else_scope, vis = True)
 
     def visit_While(self, node, vis):
         if not vis:    
