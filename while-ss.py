@@ -403,6 +403,7 @@ class Interpreter(object):
 
         
     def visit(self, node, vis):
+        #print(type(node))
         if type(node) == Scope_Node:
             return self.visit_Scope(node,vis)
         
@@ -520,7 +521,7 @@ class Interpreter(object):
                 #print(self.command)
                 temp = self.visit(statement, vis = False)
                 #print(temp)
-                if temp != '':
+                if temp != '' and temp != 'scope':
                     self.command += temp
                 #print(self.command)
                 for statement in node.statement_list[index+1:]:
@@ -528,9 +529,11 @@ class Interpreter(object):
                         self.command += self.visit(statement, vis = True) 
                         temp = '1'
                     else:
-                        self.command += '; ' + self.visit(statement, vis = True) 
+                        #print('burdaaa')
+                        self.command += '; ' + self.visit(statement, vis = True)
+                        #print(self.command)
                     #print(self.command)
-                return
+                return 'scope'
             else:
                 if is_first_command:
                     output += self.visit(statement, vis = True)
@@ -596,6 +599,7 @@ def main():
             continue
         state = {}
 
+
         max_Step = 10000
         counter = 0
         while command != 'skip' and counter < max_Step:
@@ -605,7 +609,6 @@ def main():
             AST = parser.parse()
             interpreter = Interpreter(state)
             command, state = interpreter.eval(AST)
-            #print(command)
             if command != '':
                 print('⇒ ' + command + ', ' + interpreter.print_table(state))
 
